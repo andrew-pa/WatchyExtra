@@ -11,5 +11,5 @@ fn watch_update() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, watch_update])
+    rocket::build().mount("/", routes![watch_update])
 }

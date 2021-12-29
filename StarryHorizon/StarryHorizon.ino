@@ -1,4 +1,4 @@
-// STARRY HORIZON for Watchy by SQFMI
+  // STARRY HORIZON for Watchy by SQFMI
 // Copyright 2021 Dan Delany dan.delany@gmail.com
 // Released under free MIT License : https://github.com/dandelany/watchy-faces/blob/main/LICENSE
 
@@ -65,7 +65,9 @@ class StarryHorizon : public Watchy {
             int r = 6;
             display.fillCircle(4+r,4+r,r,GxEPD_WHITE);
           }
-          display.fillRect(148, 4, (int)((getBatteryVoltage()/4.2f) * 48.0f), 8, GxEPD_WHITE);
+          // battery seems to range between about 3.18 and 4.18, but I have seen it dip down to even 1.5v and still run.
+          // it's a very loose approximation
+          display.fillRect(148, 4, (int)((getBatteryVoltage()-3.2f) * 48.0f), 8, GxEPD_WHITE);
         }
         void drawGrid() {
           int prevY = horizonY;
