@@ -6,6 +6,7 @@
 #include <Fonts/FreeSansBold9pt7b.h> //include any fonts you want to use
 #include "MadeSunflower39pt7b.h"
 #include "stars.h"
+#include "icons.h"
 
 #define STAR_COUNT 900
 
@@ -48,13 +49,36 @@ struct xyPoint rotatePointAround(int x, int y, int ox, int oy, double angle) {
   return newPoint;
 }
 
+const unsigned char* weatherIconForCondition(uint16_t cond) {
+    const unsigned char* weatherIcon = atmosphere;
+    if(cond > 801) {//Cloudy
+        weatherIcon = cloudy;
+    } else if(cond == 801) {//Few Clouds
+        weatherIcon = cloudsun;  
+    } else if(cond == 800) {//Clear
+        weatherIcon = sunny;  
+    } else if(cond >=700) {//Atmosphere
+        weatherIcon = atmosphere; 
+    } else if(cond >=600) {//Snow
+        weatherIcon = snow;
+    } else if(cond >=500) {//Rain
+        weatherIcon = rain;  
+    } else if(cond >=300) {//Drizzle
+        weatherIcon = drizzle;
+    } else if(cond >=200) {//Thunderstorm
+        weatherIcon = thunderstorm; 
+    }
+    return weatherIcon;
+}
+
 class StarryHorizon : public Watchy {
     public:
         StarryHorizon() {
           // uncomment to re-generate stars
 //          initStars();
         }
-        void drawWatchFace(){
+
+        void drawWatchFace() override {
           display.fillScreen(GxEPD_BLACK);
           display.fillCircle(100, horizonY + planetR, planetR, GxEPD_WHITE);
           drawGrid();
@@ -68,7 +92,60 @@ class StarryHorizon : public Watchy {
           // battery seems to range between about 3.18 and 4.18, but I have seen it dip down to even 1.5v and still run.
           // it's a very loose approximation
           display.fillRect(148, 4, (int)((getBatteryVoltage()-3.2f) * 48.0f), 8, GxEPD_WHITE);
+
+          display.setTextColor(GxEPD_BLACK);
+          display.setCursor(4, 198);
+          weatherData* wd = getWeatherData();
+          display.print(wd->current.temperature);
+          display.print(" ");
+          display.print(wd->current.humidity);
+          display.print("%");
         }
+
+        void drawForecast(int x, int y, forecast* fc, bool show_hum) {
+            display.drawBitmap(x,
+                    y + 10, 
+                    weatherIconForCondition(fc->condition_code),
+                    WEATHER_ICON_WIDTH, WEATHER_ICON_HEIGHT, GxEPD_BLACK);
+            display.setCursor(x, y);
+            display.print(fc->temperature);
+            if(show_hum) {
+                display.print(" ");
+                display.print(fc->humidity);
+                display.print("%");
+            }
+        }
+
+        void drawAltFace() override {
+            display.fillScreen(GxEPD_WHITE);
+            display.setFont(&FreeSansBold9pt7b);
+            display.setTextColor(GxEPD_BLACK);
+
+            char* timeStr;
+            asprintf(&timeStr, "%d:%02d", currentTime.Hour, currentTime.Minute);
+            display.setCursor(140, 16);
+            display.print(timeStr);
+            free(timeStr);
+
+            weatherData* wd = getWeatherData();
+            drawForecast(2, 16, &wd->current, true);
+            for(int h = 0; h < 4; ++h) {
+                drawForecast(2 + h*(3+WEATHER_ICON_WIDTH), 46+WEATHER_ICON_HEIGHT,
+                    &wd->hourly[h], false);
+            }
+            
+            display.drawFastHLine(4, 150, 196, GxEPD_BLACK);
+            const float scale = 24.f / 40.f;// px / deg celsius
+            for(int d = 1; d < 8; ++d) {
+                int x = 4 + d*(196/7);
+                display.drawFastVLine(x, 147, 6, GxEPD_BLACK);
+                display.drawLine(4 + (d-1)*(196/7), 150 + wd->daily[d-1].temp_min*scale,
+                                 x, 150 + wd->daily[d].temp_min*scale, GxEPD_BLACK);
+                display.drawLine(4 + (d-1)*(196/7), 150 + wd->daily[d-1].temp_max*scale,
+                                 x, 150 + wd->daily[d].temp_max*scale, GxEPD_BLACK);
+            }
+        }
+
         void drawGrid() {
           int prevY = horizonY;
           for(int i = 0; i < 40; i+= 1) {
@@ -83,6 +160,7 @@ class StarryHorizon : public Watchy {
             display.drawLine(x, 200, 100, vanishY, GxEPD_BLACK);
           }
         }
+        
         void drawStars(const Star stars[]) {
           // draw field of stars
           // rotate stars so that they make an entire revolution once per hour
@@ -106,13 +184,14 @@ class StarryHorizon : public Watchy {
             }
           }
         }
+
         void drawTime() {
           display.setFont(&MADE_Sunflower_PERSONAL_USE39pt7b);
           display.setTextColor(GxEPD_WHITE);
           display.setTextWrap(false);
           char* timeStr;
           asprintf(&timeStr, "%d:%02d", currentTime.Hour, currentTime.Minute);
-          drawCenteredString(timeStr, 100, 115, false);
+          drawCenteredString(timeStr, 100, 105, false);
           free(timeStr);
         }
 
@@ -124,7 +203,7 @@ class StarryHorizon : public Watchy {
           display.setTextWrap(false);
           char* dateStr;
           asprintf(&dateStr, "%s %s %d, %d", dayOfWeek.c_str(), monthStr.c_str(), currentTime.Day, currentTime.Year + 2000);
-          drawCenteredString(dateStr, 100, 140, true);
+          drawCenteredString(dateStr, 100, 130, true);
           free(dateStr);
         }
 
